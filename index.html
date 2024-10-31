@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biology Q&A with Chat-like Interface</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans Bengali', sans-serif;
+        }
+
+        /* Animation for typing title */
+        .typing-title {
+            white-space: nowrap; /* Prevent text from wrapping */
+            overflow: hidden; /* Hide overflow */
+            display: inline-block; /* Allow width adjustment */
+            border-right: 2px solid black; /* Cursor effect */
+            animation: typing 3s steps(30) forwards, blink-caret 0.75s step-end infinite; /* Typing effect */
+        }
+
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+
+        @keyframes blink-caret {
+            from, to { border-color: transparent; }
+            50% { border-color: black; }
+        }
+
+        /* Styling for chat bubbles */
+        .chat-bubble {
+            padding: 12px;
+            border-radius: 8px;
+            margin: 5px 0;
+            max-width: 100%;
+            overflow-wrap: break-word;
+        }
+
+        .user-question {
+            background-color: #ffffff; /* Light blue for user question */
+            align-self: flex-end; /* Align to the right */
+        }
+
+        .ai-answer {
+            background-color: #ffffff; /* Light gray for AI answer */
+            align-self: flex-start; /* Align to the left */
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+<!-- Main chat container -->
+<div id="chat-container" class="max-w-2xl mx-auto p-6  h-[80vh] flex flex-col">
+    <h1 id="title" class="text-lg font-bold text-center text-gray-800 mb-4 typing-title">জিববিজ্ঞান সম্পর্কিত প্রশ্ন করুন...</h1>
+    
+    <!-- Answer Display Section -->
+    <div id="answer-section" class="flex-1 overflow-y-auto flex-col-reverse mb-16"></div>
+</div>
+
+<!-- Fixed Input Bar -->
+<div class="fixed bottom-0 left-0 right-0 bg-gray-100 py-4 border-t border-gray-300">
+    <div class="max-w-2xl mx-auto flex items-center space-x-2 px-6">
+        <input type="text" id="question-input" placeholder="আপনার প্রশ্ন লিখুন..." 
+               class="flex-grow p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+        <button id="ask-button" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300">
+          Send
+        </button>
+    </div>
+</div>
+
+<script>
+    const qaData = [
+        { question: "ফটোসিনথেসিস কি?", answer: "ফটোসিনথেসিস হল একটি প্রক্রিয়া যার মাধ্যমে সবুজ উদ্ভিদ সূর্যালোক ব্যবহার করে খাদ্য সংশ্লেষ করে।" },
+        { question: "কোষের ঝিল্লির কার্যকারিতা কি?", answer: "কোষের ঝিল্লি কোষকে রক্ষা করে এবং কোষের ভিতরে এবং বাইরে প্রবাহ নিয়ন্ত্রণ করে।" },
+        { question: "জীববিজ্ঞান কি?", answer: "জীববিজ্ঞান হল জীব এবং তাদের পরিবেশ সম্পর্কিত বিজ্ঞান।" },
+        { question: "জীবিত ও অজীবিতের মধ্যে পার্থক্য কি?", answer: "জীবিত হল সেইসব যা বৃদ্ধি, প্রজনন এবং পরিবেশের সাথে সাড়া দেয়, অজীবিত এই বৈশিষ্ট্যগুলো প্রকাশ করে না।" }
+    ];
+
+    const questionInput = document.getElementById('question-input');
+    const askButton = document.getElementById('ask-button');
+    const answerSection = document.getElementById('answer-section');
+    const chatContainer = document.getElementById('chat-container');
+    const title = document.getElementById('title');
+
+    // Function to find the best matching answer
+    function getSimilarityScore(input, target) {
+        const wordsInCommon = input.split(" ").filter(word => target.includes(word)).length;
+        return wordsInCommon / Math.min(input.split(" ").length, target.split(" ").length);
+    }
+
+    function getBestMatch(question) {
+        const threshold = 0.5;
+        let bestMatch = null;
+        let bestScore = 0;
+
+        qaData.forEach(qa => {
+            const similarityScore = getSimilarityScore(question, qa.question);
+            if (similarityScore > bestScore) {
+                bestScore = similarityScore;
+                bestMatch = qa;
+            }
+        });
+
+        return bestScore >= threshold ? bestMatch : null;
+    }
+
+    // Function to suggest improvements if no match is found
+    function suggestImprovements(question) {
+        const suggestions = qaData.map(qa => qa.question).filter(q => getSimilarityScore(question, q) > 0.3);
+        return suggestions.length > 0 ? suggestions : ["অনুগ্রহ করে প্রশ্নটি পুনরায় লিখুন।"];
+    }
+
+    // Function to display chat messages with typing effect
+    function displayAnswerTypingEffect(answer) {
+        const answerDiv = document.createElement('div');
+        answerDiv.classList.add('chat-bubble', 'ai-answer');
+        const typingText = document.createElement('p');
+        typingText.textContent = '';
+        answerDiv.appendChild(typingText);
+        answerSection.insertBefore(answerDiv, answerSection.firstChild);
+        
+        let i = 0;
+        const typingInterval = setInterval(() => {
+            if (i < answer.length) {
+                typingText.textContent += answer[i];
+                i++;
+            } else {
+                clearInterval(typingInterval);
+            }
+        }, 50);
+
+        chatContainer.scrollTop = chatContainer.scrollHeight; // Scroll to latest message
+    }
+
+    // Function to add user questions and AI response
+    const handleAskQuestion = () => {
+        const question = questionInput.value.trim();
+        if (!question) return;
+
+        // Hide title when typing
+        title.style.display = 'none';
+
+        // Display user question
+        const userQuestionDiv = document.createElement('div');
+        userQuestionDiv.innerHTML = `<p class="text-gray-800 font-semibold">প্রশ্ন: ${question}</p>`;
+        userQuestionDiv.classList.add('chat-bubble', 'user-question');
+        answerSection.insertBefore(userQuestionDiv, answerSection.firstChild);
+        
+        // Clear input
+        questionInput.value = '';
+        chatContainer.scrollTop = chatContainer.scrollHeight; // Scroll to latest message
+
+        // Find best match and display AI response
+        const bestMatch = getBestMatch(question);
+        
+        if (bestMatch) {
+            const answerText = bestMatch.answer;
+            displayAnswerTypingEffect(`উত্তর: ${answerText}`);
+        } else {
+            const suggestions = suggestImprovements(question);
+            const suggestionText = suggestions.length > 0 
+                ? `দুঃখিত, আমি '${question}' এই প্রশ্নের উত্তর জানি না। কিন্তু আপনি এই প্রশ্নগুলো চেষ্টা করতে পারেন: ${suggestions.join(", ")}` 
+                : "দুঃখিত, আমি আপনার প্রশ্ন বুঝতে পারছি না।";
+            displayAnswerTypingEffect(suggestionText);
+        }
+    };
+
+    askButton.addEventListener('click', handleAskQuestion);
+
+    // Allow submitting question with Enter key
+    questionInput.addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') {
+            handleAskQuestion();
+        }
+    });
+
+    // Show title again when user focuses on input
+    questionInput.addEventListener('focus', () => {
+        title.style.display = 'block';
+    });
+</script>
+
+</body>
+</html>
